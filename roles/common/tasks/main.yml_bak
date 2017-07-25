@@ -1,0 +1,63 @@
+---
+- name: pull files from git
+  shell: echo {{ ansible_expr }} >> xxx
+  async: 3600
+  poll: 0
+  register: git_result
+  run_once: yes
+  delegate_to: "{{ app_meta['ver_info']['ver_attribute']['gitclientnode'] }}"
+
+#- name: stop C process
+#  shell: pro_manager.sh -f {{ ansible_expr }} -y stop
+#  with_items: [ accountlogSrv,accountSrv,centerSrv,fightManagerSrv,fightSrv,gameSrv,gamelogSrv,gmAgencySrv,proxySrv ]
+#  when: ( item in ansible_expr )
+#
+#- name: stop Java process
+#  shell: nohup online/{{ ansible_expr }}/bin/shutdown.sh &
+#  with_items: [ entrySrv,opdata,gmSrv ]
+#  when: ( item in ansible_expr )
+
+- name: back files
+  script: bakfiles.sh "{{ ansible_expr }}" "{{ app_meta['ver_info']['ver_attribute']['back_path'] }}"
+
+#- name: back db
+#
+
+- name: check git pull result
+  async_status: jid={{ git_result.ansible_job_id }}
+  run_once: yes
+  delegate_to: "{{ app_meta['ver_info']['ver_attribute']['gitclientnode'] }}"
+  register: job_result
+  until: job_result.finished
+  retries: 30
+  delay: 10
+
+- name: update files
+  #synchronize: 
+  #  compress: yes
+  #  checksum: yes
+  #  src: "{{ app_meta['ver_info']['ver_attribute']['gitclientrepo'] }}/code/{{ item }}/"
+  #  dest: "{{ ansible_expr }}/"
+  #  rsync_opts:
+  #   - "--exclude=*.md"
+  #   - "--exclude=.git"
+  script: rsyncfiles.sh "{{ app_meta['ver_info']['ver_attribute']['gitclientrepo'] }}/code/{{ item }}/" "{{ other_ip[-1] }}" "{{ ansible_expr }}"
+  with_items: [ accountlogSrv,accountSrv,centerSrv,fightManagerSrv,fightSrv,gameSrv,gamelogSrv,gmAgencySrv,proxySrv,entrySrv,opdata,gmSrv ]
+  when: ( item in ansible_expr )
+  register: rsync_result
+  delegate_to: "{{ app_meta['ver_info']['ver_attribute']['gitclientnode'] }}"
+
+- name: rsync content
+  debug: var=item.stdout_lines
+  with_items: "{{ rsync_result.results }}"
+  when: ( "stdout_lines" in item.keys() )
+
+#- name: start C process
+#  shell: pro_manager.sh -f {{ ansible_expr }} -y start
+#  with_items: [ accountlogSrv,accountSrv,centerSrv,fightManagerSrv,fightSrv,gameSrv,gamelogSrv,gmAgencySrv,proxySrv ]
+#  when: ( item in ansible_expr )
+
+#- name: start Java process
+#  shell: nohup online/{{ ansible_expr }}/bin/startup.sh &
+#  with_items: [ entrySrv,opdata,gmSrv ]
+#  when: ( item in ansible_expr )

@@ -1,0 +1,15 @@
+---
+- hosts: "{{ hosts }}"
+  remote_user: "{{ app_meta['ver_info']['ver_attribute']['work_user'] }}"
+  gather_facts: no
+  
+  tasks:
+   - name: Set up multiple authorized keys
+     authorized_key:
+      user: ghoul
+      state: present
+      key: '{{ item }}'
+     with_file:
+      - roles/common/files/key/awshw_id_rsa.pub
+      - roles/common/files/key/zw_id_rsa.pub
+      - roles/common/files/key/tx_id_rsa.pub

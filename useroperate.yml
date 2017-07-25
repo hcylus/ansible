@@ -1,0 +1,45 @@
+---
+- hosts: "{{ hosts }}"
+  remote_user: admin
+  become: true
+  become_method: su
+  become_user: root
+  gather_facts: false
+
+  vars_prompt:
+   - name: "choice"
+     prompt: "input(create|delete|passwd|cancel): " 
+
+   - name: "user"
+     prompt: "username: "
+     private: no
+    
+   - name: "passwd"
+     prompt: "password: "
+     private: yes
+
+  tasks:
+   - name: create {{ user }} user
+     connection: local
+     local_action: shell python -c "import crypt; print crypt.crypt('{{ passwd }}', '\$6\$`openssl rand -base64 16 | tr -d '+=' | head -c 8`\$')" 
+     register: pwd
+     #prompt: "passwd"
+     #shell: openssl passwd -1 {{ passwd }}
+     notify:
+      - create user
+     #tags: create
+     when: {{ choice }} == "create"
+
+   - debug: var=pwd
+
+   - name: update "{{ user }}" password
+     expect:
+      command: passwd "{{ user }}"
+      responses:
+       (?i)password: "{{ passwd }}"
+     # register: pwd
+     tags: passwd
+
+  handlers:
+   - name: create user
+     user: name={{ user }} password={{ pwd.stdout }}
